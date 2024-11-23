@@ -17,7 +17,7 @@ if __name__=='__main__':
     if checkpoint:
         model.load_state_dict(checkpoint['model'])
         
-    optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
+    optimizer=torch.optim.Adam(model.parameters(),lr=1e-4)
     if checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer'])
     
@@ -31,7 +31,11 @@ if __name__=='__main__':
 
     tensorboard=SummaryWriter(log_dir=f'runs/wakeword_{datetime.now().strftime("%Y%m%d-%H%M%S")}')
 
-    best_loss=None
+    best_precision=None
+    best_recall=None
+    if checkpoint:
+        best_precision=checkpoint['best_precision']
+        best_recall=checkpoint['best_recall']
     
     for epoch in range(EPOCH):
         model.train()
@@ -69,7 +73,7 @@ if __name__=='__main__':
         tensorboard.add_scalar('metrics/test_recall',recall,epoch)
         print(f'epoch:{epoch} train_loss:{loss.item()} TP:{TP} FP:{FP} FN:{FN} test_precision:{precision} test_recall:{recall}')
         
-        if best_loss is None or loss.item()<best_loss:
-            best_loss=loss.item()
-            torch.save({'model':model.state_dict(),'optimizer':optimizer.state_dict()},'.checkpoint.pth')
+        if best_precision is None or (best_precision<precision and best_recall<recall):
+            best_precision,best_recall=precision,recall
+            torch.save({'model':model.state_dict(),'optimizer':optimizer.state_dict(),'best_precision':best_precision,'best_recall':best_recall},'.checkpoint.pth')
             os.replace('.checkpoint.pth','checkpoint.pth')
