@@ -1,10 +1,9 @@
-import pydub
 from config import *
-from audio import load,merge,collect
+from audio import load,merge,collect,specgram
 import random
 import numpy as np
-import json
 import os 
+import json
 
 def generate_dataset(datadir,manifest,samples):
     os.makedirs(datadir,exist_ok=True)
@@ -13,12 +12,9 @@ def generate_dataset(datadir,manifest,samples):
     wakeword_list=collect(WAKEWORD_DIR)
     nowakeword_list=collect(NOWAKEWORD_DIR)
     
-    x_list=[]
-    y_list=[]
+    dataset=[]
     
     for i in range(samples):
-        y=np.zeros((OUTPUT_STEPS,1))
-        
         # 随机选1组音频
         background=load(random.choice(background_list))
         wakeword=load(random.choice(wakeword_list))
@@ -35,20 +31,23 @@ def generate_dataset(datadir,manifest,samples):
                 
         # 合成音频
         background=merge(background,[(wakeword,wakeword_beg)],[(nowakeword,nowakeword_beg)])
-        # 存储音频
-        filename=f'{datadir}/{i}.wav'
-        background.export(filename,format='wav')
-        x_list.append(filename)
-        
-        # y中标记wakeword结束位置
+        wav_filename=f'{datadir}/{i}.wav'
+        background.export(wav_filename,format='wav')
+
+        # 特征生成
+        x=specgram(wav_filename)
+        y=np.zeros((OUTPUT_STEPS,1))
         y_pos=int(wakeword_end/len(background)*OUTPUT_STEPS)
         y[y_pos:y_pos+50,0]=1
-        y_list.append(y.tolist())
-    
-    # 保存数据集信息
-    with open(manifest,'w') as fp:
-        json.dump({'x':x_list,'y':y_list},fp)
+        sample_filename=f'{datadir}/{i}.npz'
+        np.savez(sample_filename,x=x,y=y)
+        
+        dataset.append({'wav':wav_filename,'sample':sample_filename})
 
+        print(f'{wav_filename} 生成完毕')
+    with open(manifest,'w') as fp:
+        json.dump(dataset,fp)
+        
 if __name__=='__main__':
     train_samples=int(input('输入希望生成的训练集大小:'))
     test_samples=int(input('输入希望生成的测试集大小:'))
