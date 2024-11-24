@@ -27,11 +27,8 @@ def load(filename):
     return AudioSegment.from_wav(filename)
 
 # 合成音频
-def merge(background,wakeword_list,nowakeword_list):
-    for wakeword,position in wakeword_list:
-        background=background.overlay(wakeword,position=position)
-    for nowakeword,position in nowakeword_list:
-        background=background.overlay(nowakeword,position=position)
+def merge(background,audio,position):
+    background=background.overlay(audio,position=position)
     return background
 
 # 提取频谱

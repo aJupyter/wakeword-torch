@@ -5,6 +5,25 @@ import numpy as np
 import os 
 import json
 
+def random_insert_audio(audio_list,is_wakeword,seg_list,background,y,max_retry=20):
+    audio=load(random.choice(audio_list))
+    for _ in range(max_retry):
+        audio_beg=random.randint(0,len(background)-len(audio))
+        audio_end=audio_beg+len(audio)
+        ok=True
+        for seg in seg_list:
+            if not (audio_end<seg[0] or seg[1]<audio_beg):
+                ok=False
+                break
+        if ok:
+            seg_list.append((audio_beg,audio_end,audio))
+            background=merge(background,audio,audio_beg)
+            if is_wakeword:
+                y_pos=int(audio_end/len(background)*OUTPUT_STEPS)
+                y[y_pos:y_pos+50,0]=1
+            break
+    return background
+    
 def generate_dataset(datadir,manifest,samples):
     os.makedirs(datadir,exist_ok=True)
     
@@ -15,30 +34,20 @@ def generate_dataset(datadir,manifest,samples):
     dataset=[]
     
     for i in range(samples):
-        # 随机选1组音频
         background=load(random.choice(background_list))
-        wakeword=load(random.choice(wakeword_list))
-        nowakeword=load(random.choice(nowakeword_list))
+        y=np.zeros((OUTPUT_STEPS,1))
         
-        # 随机生成位置
-        wakeword_beg=random.randint(0,len(background)-len(wakeword))
-        wakeword_end=wakeword_beg+len(wakeword)
-        while True:
-            nowakeword_beg=random.randint(0,len(background)-len(nowakeword))
-            nowakeword_end=nowakeword_beg+len(nowakeword)
-            if wakeword_end<nowakeword_beg or nowakeword_end<wakeword_beg:
-                break
-                
-        # 合成音频
-        background=merge(background,[(wakeword,wakeword_beg)],[(nowakeword,nowakeword_beg)])
+        seg_list=[]
+        for _ in range(random.randint(0,4)):
+            if random.random()<0.5:
+                background=random_insert_audio(audio_list=wakeword_list,is_wakeword=True,seg_list=seg_list,background=background,y=y)
+            else:
+                background=random_insert_audio(audio_list=nowakeword_list,is_wakeword=False,seg_list=seg_list,background=background,y=y)     
+        
         wav_filename=f'{datadir}/{i}.wav'
         background.export(wav_filename,format='wav')
 
-        # 特征生成
         x=specgram(wav_filename)
-        y=np.zeros((OUTPUT_STEPS,1))
-        y_pos=int(wakeword_end/len(background)*OUTPUT_STEPS)
-        y[y_pos:y_pos+50,0]=1
         sample_filename=f'{datadir}/{i}.npz'
         np.savez(sample_filename,x=x,y=y)
         
