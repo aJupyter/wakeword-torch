@@ -17,7 +17,7 @@ if __name__=='__main__':
     if checkpoint:
         model.load_state_dict(checkpoint['model'])
         
-    optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
+    optimizer=torch.optim.Adam(model.parameters(),lr=1e-5)
     if checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer'])
     
