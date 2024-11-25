@@ -44,7 +44,7 @@ with sd.InputStream(samplerate=RATE,channels=1,callback=callback,dtype='int16'):
             x=torch.tensor(x).unsqueeze(0).type(torch.float32).to(DEVICE)
             output=model(x)
             output=output.flatten()
-            pred=(output>0.5)
+            pred=(output>0.9)
             
             # 只检测最后1秒是否存在激活信号
             if pred[-int(1/BACKGROUND_DURATION*OUTPUT_STEPS):].sum()>0:
